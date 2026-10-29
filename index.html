@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YouTube Gateway</title>
+<meta name="description" content="Search YouTube videos through the official YouTube Data API.">
+<meta name="theme-color" content="#6750a4">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%236750a4'/%3E%3Cpath d='M9 7v10l8-5z' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{--surface:#fef7ff;--container:#f3edf7;--container-hi:#ece6f0;--primary:#6750a4;--on-primary:#fff;--primary-c:#eaddff;--text:#1d1b20;--muted:#625b71;--border:#cac4d0;--danger:#b3261e;--radius:20px;--shadow:0 1px 3px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--surface:#141218;--container:#211f26;--container-hi:#2b2930;--primary:#d0bcff;--on-primary:#381e72;--primary-c:#4f378b;--text:#e6e0e9;--muted:#cac4d0;--border:#49454f;--danger:#f2b8b5;color-scheme:dark}}
+:root[data-theme=dark]{--surface:#141218;--container:#211f26;--container-hi:#2b2930;--primary:#d0bcff;--on-primary:#381e72;--primary-c:#4f378b;--text:#e6e0e9;--muted:#cac4d0;--border:#49454f;--danger:#f2b8b5;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--surface);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Arabic",sans-serif;transition:background .2s,color .2s}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.icon{width:24px;height:24px;fill:currentColor;flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.iconbtn{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.iconbtn:hover{background:var(--container-hi);color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 24px;border-radius:999px;background:var(--primary);color:var(--on-primary);font-weight:600;text-decoration:none}
+.btn.tonal{background:var(--primary-c);color:var(--text)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--surface)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem;padding:0 8px;color:var(--text);text-decoration:none;white-space:nowrap}
+.logo{width:36px;height:36px;border-radius:11px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center}
+.searchbox{display:flex;align-items:center;flex:1;max-width:640px;margin-inline:auto;height:52px;border-radius:999px;background:var(--container-hi);padding-inline:6px 4px;border:2px solid transparent}
+.searchbox:focus-within{border-color:var(--primary)}
+.searchbox input{flex:1;min-width:0;height:100%;border:0;background:none;padding:0 10px;outline:0}
+.searchbox .iconbtn{width:44px;height:44px}
+.searchbox.big{height:60px;max-width:680px;width:100%}
+.spin{width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin-inline:11px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.layout{display:flex}
+nav.rail{position:sticky;top:68px;align-self:flex-start;width:88px;display:flex;flex-direction:column;gap:12px;padding:12px 0;height:calc(100vh - 68px)}
+nav a,nav button{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.75rem;color:var(--muted);text-decoration:none;padding:0}
+nav .pill{width:56px;height:32px;border-radius:16px;display:grid;place-items:center;transition:background .2s}
+nav [aria-current=page]{color:var(--text);font-weight:600}
+nav [aria-current=page] .pill{background:var(--primary-c)}
+nav .item:hover .pill{background:var(--container-hi)}
+main{flex:1;min-width:0;padding:8px 16px 96px;max-width:1500px}
+h1{font-size:1.75rem;margin:8px 0 16px}
+.home{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8vh 0 0;gap:16px}
+.home h1{font-size:clamp(2rem,6vw,3rem);margin:0}
+.home p{color:var(--muted);max-width:520px;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{min-height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--border);color:var(--text)}
+.chip:hover{background:var(--container-hi)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.card{background:var(--container);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.thumb{position:relative;display:block;width:100%;aspect-ratio:16/9;background:var(--container-hi);padding:0}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.badge{position:absolute;inset-inline-end:8px;bottom:8px;background:rgba(0,0,0,.8);color:#fff;font-size:.75rem;padding:2px 6px;border-radius:6px}
+.meta{display:flex;gap:12px;padding:12px 14px 16px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--container-hi);flex:none;object-fit:cover}
+.meta h3{margin:0;font-size:1rem;line-height:1.35;text-align:start}
+.meta h3 button{text-align:start;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0;min-height:24px}
+.sub{color:var(--muted);font-size:.85rem}
+.snip{color:var(--muted);font-size:.85rem;margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pager{display:flex;justify-content:center;gap:12px;margin:28px 0}
+.state{text-align:center;padding:10vh 16px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:12px}
+.state h2{color:var(--text);margin:0}
+.skel{background:var(--container);border-radius:var(--radius);overflow:hidden}
+.skel i{display:block;background:linear-gradient(90deg,var(--container-hi),var(--container),var(--container-hi));background-size:200% 100%;animation:sh 1.4s infinite}
+.skel i:first-child{aspect-ratio:16/9}
+.skel i+i{height:14px;margin:14px;border-radius:7px}
+@keyframes sh{to{background-position:-200% 0}}
+.watch{max-width:1100px;margin:0 auto}
+.player{aspect-ratio:16/9;width:100%;border-radius:var(--radius);overflow:hidden;background:#000}
+.player iframe{width:100%;height:100%;border:0;display:block}
+.bar{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.desc{white-space:pre-wrap;word-break:break-word;background:var(--container);border-radius:var(--radius);padding:16px;margin-top:12px}
+.list{display:flex;flex-direction:column;gap:12px;max-width:820px}
+.row{display:flex;align-items:center;gap:12px;background:var(--container);border-radius:16px;padding:8px 8px 8px 8px}
+.row .thumb{width:168px;border-radius:12px;overflow:hidden;flex:none}
+.row .info{flex:1;min-width:0}
+.row .info button{text-align:start;font-weight:600;padding:0}
+.panel{background:var(--container);border-radius:var(--radius);padding:8px 20px;max-width:720px;margin-bottom:16px}
+.setting{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;flex-wrap:wrap}
+.setting+.setting{border-top:1px solid var(--border)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+.seg button{min-height:44px;padding:0 18px}
+.seg [aria-checked=true]{background:var(--primary-c);font-weight:600}
+select{min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface);appearance:none}
+#toasts{position:fixed;inset-inline:0;bottom:calc(88px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:50;pointer-events:none}
+.toast{background:var(--text);color:var(--surface);padding:12px 20px;border-radius:14px;box-shadow:var(--shadow);animation:in .2s}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+@media(max-width:839px){
+ .brand span{display:none}
+ nav.rail{position:fixed;inset:auto 0 0 0;top:auto;width:auto;height:auto;flex-direction:row;justify-content:space-around;background:var(--container);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));z-index:30;gap:0}
+ nav .item{flex:1}
+ main{padding-inline:12px}
+ .grid{grid-template-columns:1fr;gap:16px}
+ .row .thumb{width:120px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+ <a class="brand" href="#/" aria-label="YouTube Gateway home"><div class="logo" id="logo"></div><span>YouTube Gateway</span></a>
+ <form class="searchbox" id="hsearch" role="search">
+  <input id="hq" type="search" maxlength="100" autocomplete="off" data-i18n-ph="search_ph" data-i18n-label="search_ph">
+  <button type="button" class="iconbtn" id="hclear" hidden data-i18n-label="clear"></button>
+  <button type="submit" class="iconbtn" id="hgo" data-i18n-label="search"></button>
+ </form>
+ <button class="iconbtn" id="themebtn" data-i18n-label="toggle_theme"></button>
+ <button class="iconbtn" id="setbtn" data-i18n-label="settings"></button>
+</header>
+<div class="layout">
+ <nav class="rail" aria-label="Main">
+  <a class="item" href="#/" data-nav="home"><span class="pill" data-ic="home"></span><span data-i18n="home"></span></a>
+  <button class="item" id="navsearch" data-nav="search"><span class="pill" data-ic="search"></span><span data-i18n="search"></span></button>
+  <a class="item" href="#/history" data-nav="history"><span class="pill" data-ic="history"></span><span data-i18n="history"></span></a>
+  <a class="item" href="#/settings" data-nav="settings"><span class="pill" data-ic="settings"></span><span data-i18n="settings"></span></a>
+ </nav>
+ <main id="main" tabindex="-1"></main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<script>
+'use strict';
+// ==============================
+// YouTube Data API configuration
+// ==============================
+// Paste your Google Cloud YouTube Data API v3 key here.
+// Keep in mind: because this is a standalone browser app, the key is visible to the browser.
+const YOUTUBE_API_KEY = 'AIzaSyBbRldnDMsbzXBGmQJG7PgMr_tdQy0zt5o';
+const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
+const ICONS = {
+ search:'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+ close:'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+ home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+ history:'M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z',
+ settings:'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+ back:'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+ open:'M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z',
+ trash:'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+ theme:'M12 3a9 9 0 1 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z',
+ play:'M8 5v14l11-7z'
+};
+const STR = {
+ en:{home:'Home',search:'Search',history:'History',settings:'Settings',search_ph:'Search YouTube',clear:'Clear search',toggle_theme:'Change theme',
+  home_title:'Search YouTube',home_sub:'Search YouTube videos, channels, and content through the official YouTube API.',recent:'Recent searches',
+  results_for:'Results for',no_results:'No results',no_results_sub:'Try different keywords.',prev:'Previous',next:'Next',back:'Back',open_yt:'Open on YouTube',
+  views:'views',theme:'Theme',system:'System',light:'Light',dark:'Dark',per_page:'Results per page',language:'Language',clear_history:'Clear watch history',
+  clear_recent:'Clear recent searches',cleared:'Cleared',about:'About',about_text:'Powered by YouTube Data API. This app is not affiliated with or endorsed by YouTube.',
+  history_empty:'Nothing watched yet',history_empty_sub:'Videos you open will appear here.',remove:'Remove',retry:'Try again',
+  err_network:'Could not reach the server. Check your connection and try again.',err_quota_exceeded:'The daily YouTube search limit has been reached. Please try again tomorrow.',
+  err_rate_limited:'Too many requests. Please wait a minute and try again.',err_invalid_query:'Enter a search between 1 and 100 characters.',
+  err_server_config:'The service is not set up correctly. Contact the site owner.',err_not_found:'That video could not be found.',err_generic:'Something went wrong while searching. Please try again.',
+  watch_unavailable:'Video details are unavailable right now.',future:'Future: more languages, channels, playlists.'},
+ ar:{home:'الرئيسية',search:'بحث',history:'السجل',settings:'الإعدادات',search_ph:'ابحث في يوتيوب',clear:'مسح البحث',toggle_theme:'تغيير السمة',
+  home_title:'ابحث في يوتيوب',home_sub:'ابحث عن فيديوهات وقنوات ومحتوى يوتيوب عبر واجهة يوتيوب الرسمية.',recent:'عمليات البحث الأخيرة',
+  results_for:'نتائج',no_results:'لا توجد نتائج',no_results_sub:'جرّب كلمات مختلفة.',prev:'السابق',next:'التالي',back:'رجوع',open_yt:'فتح على يوتيوب',
+  views:'مشاهدة',theme:'السمة',system:'النظام',light:'فاتح',dark:'داكن',per_page:'عدد النتائج في الصفحة',language:'اللغة',clear_history:'مسح سجل المشاهدة',
+  clear_recent:'مسح عمليات البحث الأخيرة',cleared:'تم المسح',about:'حول',about_text:'مدعوم بواجهة YouTube Data API. هذا التطبيق غير تابع ليوتيوب ولا معتمد منه.',
+  history_empty:'لا توجد مشاهدات بعد',history_empty_sub:'ستظهر هنا الفيديوهات التي تفتحها.',remove:'إزالة',retry:'حاول مرة أخرى',
+  err_network:'تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مجددًا.',err_quota_exceeded:'تم الوصول إلى حد البحث اليومي. حاول غدًا.',
+  err_rate_limited:'طلبات كثيرة. انتظر دقيقة ثم حاول مجددًا.',err_invalid_query:'أدخل نص بحث من 1 إلى 100 حرف.',
+  err_server_config:'الخدمة غير مهيأة بشكل صحيح. تواصل مع مالك الموقع.',err_not_found:'تعذّر العثور على الفيديو.',err_generic:'حدث خطأ أثناء البحث. حاول مرة أخرى.',
+  watch_unavailable:'تفاصيل الفيديو غير متاحة حاليًا.',future:'قريبًا: المزيد من اللغات والقنوات وقوائم التشغيل.'}
+};
+const $ = s => document.querySelector(s);
+const store = {
+ get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+ set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } }
+};
+const settings = Object.assign({ theme:'system', perPage:12, lang:'en' }, store.get('ytg.settings', {}));
+const t = k => (STR[settings.lang] || STR.en)[k] || STR.en[k] || k;
+
+function icon(name){
+ const ns = 'http://www.w3.org/2000/svg', s = document.createElementNS(ns, 'svg'), p = document.createElementNS(ns, 'path');
+ s.setAttribute('class', 'icon'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+ p.setAttribute('d', ICONS[name]); s.appendChild(p); return s;
+}
+function h(tag, props, ...kids){
+ const el = document.createElement(tag);
+ for (const [k, v] of Object.entries(props || {})){
+  if (v == null || v === false) continue;
+  if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+  else if (k === 'class') el.className = v;
+  else el.setAttribute(k, v === true ? '' : v);
+ }
+ for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(kid));
+ return el;
+}
+function toast(msg){
+ const el = h('div', { class:'toast', role:'status' }, msg); $('#toasts').append(el);
+ setTimeout(() => el.remove(), 3500);
+}
+
+/* ---------- theme & language ---------- */
+function applyTheme(){
+ const r = document.documentElement;
+ settings.theme === 'system' ? r.removeAttribute('data-theme') : r.setAttribute('data-theme', settings.theme);
+}
+function applyLang(){
+ const r = document.documentElement;
+ r.lang = settings.lang; r.dir = settings.lang === 'ar' ? 'rtl' : 'ltr';
+ document.querySelectorAll('[data-i18n]').forEach(e => e.textContent = t(e.dataset.i18n));
+ document.querySelectorAll('[data-i18n-ph]').forEach(e => e.placeholder = t(e.dataset.i18nPh));
+ document.querySelectorAll('[data-i18n-label]').forEach(e => e.setAttribute('aria-label', t(e.dataset.i18nLabel)));
+}
+function saveSettings(){ store.set('ytg.settings', settings); }
+
+/* ---------- local data ---------- */
+const getHistory = () => store.get('ytg.history', []);
+function addHistory(v){
+ const list = getHistory().filter(x => x.id !== v.id);
+ list.unshift({ id:v.id, title:v.title, thumbnail:v.thumbnail, channelTitle:v.channelTitle, ts:Date.now() });
+ store.set('ytg.history', list.slice(0, 100));
+}
+const getRecent = () => store.get('ytg.recent', []);
+function addRecent(q){ store.set('ytg.recent', [q, ...getRecent().filter(x => x !== q)].slice(0, 8)); }
+
+/* ---------- API layer ---------- */
+const cache = new Map();
+let controller = null;
+
+async function youtubeGet(resource, params){
+ const qs = new URLSearchParams({ ...params, key: YOUTUBE_API_KEY }).toString();
+ controller?.abort(); controller = new AbortController();
+ let res;
+ try {
+  res = await fetch(`${YOUTUBE_API_BASE}/${resource}?${qs}`, {
+   signal: controller.signal,
+   headers: { Accept:'application/json' }
+  });
+ } catch (e){
+  if (e.name === 'AbortError') throw e;
+  throw Object.assign(new Error('network'), { code:'network' });
+ }
+ let body = null;
+ try { body = await res.json(); } catch {}
+ if (!res.ok){
+  const reason = body?.error?.errors?.[0]?.reason || '';
+  if (reason === 'quotaExceeded' || reason === 'dailyLimitExceeded' || reason === 'rateLimitExceeded')
+   throw Object.assign(new Error('api'), { code:'quota_exceeded' });
+  if (res.status === 400) throw Object.assign(new Error('api'), { code:'invalid_query' });
+  throw Object.assign(new Error('api'), { code:'generic' });
+ }
+ return body;
+}
+
+function parseIsoDuration(iso){
+ const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
+ if (!m) return null;
+ return Number(m[1]||0)*3600 + Number(m[2]||0)*60 + Number(m[3]||0);
+}
+
+const thumb = t => t?.medium?.url || t?.high?.url || t?.default?.url || '';
+
+async function apiGet(path, params){
+ const key = path + '?' + new URLSearchParams(params).toString();
+ if (cache.has(key)) return cache.get(key);
+ if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY === 'PUT_YOUR_API_KEY_HERE')
+  throw Object.assign(new Error('api'), { code:'server_config' });
+
+ let body;
+ if (path === 'search'){
+  const q = String(params.q || '').trim();
+  const maxResults = Number(params.maxResults || 12);
+  body = await youtubeGet('search', {
+   part:'snippet', type:'video', q, maxResults, safeSearch:'moderate',
+   ...(params.pageToken ? { pageToken:params.pageToken } : {})
+  });
+
+  const found = (body.items || []).filter(i => i.id?.videoId);
+  const ids = found.map(i => i.id.videoId);
+  const channelIds = [...new Set(found.map(i => i.snippet?.channelId).filter(Boolean))];
+
+  const [details, channels] = await Promise.all([
+   ids.length ? youtubeGet('videos', { part:'contentDetails,statistics', id:ids.join(',') }).catch(() => null) : null,
+   channelIds.length ? youtubeGet('channels', { part:'snippet', id:channelIds.join(',') }).catch(() => null) : null
+  ]);
+
+  const byId = new Map((details?.items || []).map(v => [v.id, v]));
+  const avatars = new Map((channels?.items || []).map(c => [c.id, c.snippet?.thumbnails?.default?.url || '']));
+  body = {
+   items: found.map(i => {
+    const d = byId.get(i.id.videoId);
+    return {
+     id:i.id.videoId, title:i.snippet.title, description:i.snippet.description,
+     thumbnail:thumb(i.snippet.thumbnails), channelId:i.snippet.channelId,
+     channelTitle:i.snippet.channelTitle, channelThumbnail:avatars.get(i.snippet.channelId)||'',
+     publishedAt:i.snippet.publishedAt, durationSeconds:parseIsoDuration(d?.contentDetails?.duration),
+     viewCount:d?.statistics?.viewCount ? Number(d.statistics.viewCount) : null
+    };
+   }),
+   nextPageToken:body.nextPageToken || null, prevPageToken:body.prevPageToken || null
+  };
+ } else if (path === 'videos'){
+  const data = await youtubeGet('videos', { part:'snippet,contentDetails,statistics', id:params.id });
+  const v = data.items?.[0];
+  if (!v) throw Object.assign(new Error('api'), { code:'not_found' });
+  body = {
+   id:v.id, title:v.snippet.title, description:v.snippet.description, thumbnail:thumb(v.snippet.thumbnails),
+   channelId:v.snippet.channelId, channelTitle:v.snippet.channelTitle, publishedAt:v.snippet.publishedAt,
+   durationSeconds:parseIsoDuration(v.contentDetails?.duration),
+   viewCount:v.statistics?.viewCount ? Number(v.statistics.viewCount) : null
+  };
+ } else {
+  throw Object.assign(new Error('api'), { code:'generic' });
+ }
+
+ cache.set(key, body);
+ if (cache.size > 60) cache.delete(cache.keys().next().value);
+ return body;
+}
+
+const searchYouTube = (query, pageToken) => apiGet('search', { q:query, maxResults:settings.perPage, ...(pageToken ? { pageToken } : {}) });
+const getVideo = id => apiGet('videos', { id });
+const errText = e => t('err_' + e.code) !== 'err_' + e.code ? t('err_' + e.code) : t('err_generic');
+
+/* ---------- formatting ---------- */
+const fmtViews = n => n == null ? '' : new Intl.NumberFormat(settings.lang, { notation:'compact' }).format(n) + ' ' + t('views');
+const fmtDate = s => s ? new Date(s).toLocaleDateString(settings.lang, { year:'numeric', month:'short', day:'numeric' }) : '';
+function fmtDur(sec){
+ if (sec == null) return '';
+ const hh = Math.floor(sec / 3600), mm = Math.floor(sec % 3600 / 60), ss = String(sec % 60).padStart(2, '0');
+ return hh ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+}
+const unesc = s => { const d = document.createElement('textarea'); d.innerHTML = s || ''; return d.value; }; // API titles contain HTML entities; textarea never executes markup
+
+/* ---------- views ---------- */
+const main = $('#main');
+const watchHref = id => '#/watch/' + id;
+function show(...nodes){ main.replaceChildren(...nodes); main.scrollTop = 0; window.scrollTo(0, 0); }
+function setNav(name){ document.querySelectorAll('[data-nav]').forEach(e => e.dataset.nav === name ? e.setAttribute('aria-current', 'page') : e.removeAttribute('aria-current')); }
+function stateBox(title, sub, action){ return h('div', { class:'state' }, h('h2', null, title), sub && h('p', null, sub), action); }
+function searchForm(big){
+ const input = h('input', { type:'search', maxlength:100, autocomplete:'off', placeholder:t('search_ph'), 'aria-label':t('search_ph') });
+ const form = h('form', { class:'searchbox big', role:'search', onsubmit:e => { e.preventDefault(); submitSearch(input.value); } },
+  h('span', { class:'iconbtn', 'aria-hidden':'true' }, icon('search')), input,
+  h('button', { type:'submit', class:'btn', style:'margin-inline-end:4px' }, t('search')));
+ return { form, input };
+}
+function homeView(){
+ setNav('home');
+ const { form, input } = searchForm();
+ const recent = getRecent();
+ show(h('section', { class:'home' }, h('h1', null, t('home_title')), h('p', null, t('home_sub')), form,
+  recent.length && h('div', { class:'chips', role:'list', 'aria-label':t('recent') }, recent.map(q => h('button', { class:'chip', role:'listitem', onclick:() => submitSearch(q) }, q)))));
+ input.focus({ preventScroll:true });
+}
+function skeletons(n){ return h('div', { class:'grid', 'aria-busy':'true' }, Array.from({ length:n }, () => h('div', { class:'skel' }, h('i'), h('i'), h('i')))); }
+function card(v){
+ const open = () => { location.hash = watchHref(v.id); };
+ return h('article', { class:'card' },
+  h('button', { class:'thumb', onclick:open, 'aria-label':unesc(v.title) }, h('img', { src:v.thumbnail, alt:'', loading:'lazy', decoding:'async' }),
+   v.durationSeconds != null && h('span', { class:'badge' }, fmtDur(v.durationSeconds))),
+  h('div', { class:'meta' },
+   v.channelThumbnail ? h('img', { class:'avatar', src:v.channelThumbnail, alt:'', loading:'lazy' }) : h('div', { class:'avatar' }),
+   h('div', null, h('h3', null, h('button', { onclick:open }, unesc(v.title))),
+    h('div', { class:'sub' }, unesc(v.channelTitle)),
+    h('div', { class:'sub' }, [fmtViews(v.viewCount), fmtDate(v.publishedAt)].filter(Boolean).join(' • ')),
+    v.description && h('p', { class:'snip' }, unesc(v.description)))));
+}
+let currentQuery = '', lastResults = null;
+function submitSearch(q){
+ q = (q || '').trim(); if (!q) return;
+ if (q.length > 100) return toast(t('err_invalid_query'));
+ if (('#/search/' + encodeURIComponent(q)) === location.hash) runSearch(q); else location.hash = '#/search/' + encodeURIComponent(q);
+}
+async function runSearch(q, pageToken){
+ setNav('search'); currentQuery = q; syncHeader();
+ show(h('h1', null, `${t('results_for')} “${q}”`), skeletons(settings.perPage));
+ setBusy(true);
+ try {
+  const data = await searchYouTube(q, pageToken); lastResults = data;
+  if (!pageToken) addRecent(q);
+  if (!data.items.length) return show(stateBox(t('no_results'), t('no_results_sub')));
+  show(h('h1', null, `${t('results_for')} “${q}”`), h('div', { class:'grid' }, data.items.map(card)),
+   h('div', { class:'pager' },
+    h('button', { class:'btn tonal', disabled:!data.prevPageToken, onclick:() => runSearch(q, data.prevPageToken) }, t('prev')),
+    h('button', { class:'btn tonal', disabled:!data.nextPageToken, onclick:() => runSearch(q, data.nextPageToken) }, t('next'))));
+ } catch (e){
+  if (e.name === 'AbortError') return;
+  show(stateBox(errText(e), null, h('button', { class:'btn', onclick:() => runSearch(q, pageToken) }, t('retry'))));
+ } finally { setBusy(false); }
+}
+function setBusy(on){
+ const go = $('#hgo'); go.replaceChildren(on ? h('div', { class:'spin' }) : icon('search')); go.disabled = on;
+}
+async function watchView(id){
+ setNav('');
+ const info = h('div', null), embed = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0`;
+ const known = getHistory().find(x => x.id === id);
+ show(h('div', { class:'watch' },
+  h('div', { class:'bar' }, h('button', { class:'btn tonal', onclick:() => history.length > 1 ? history.back() : (location.hash = '#/') }, icon('back'), t('back')),
+   h('a', { class:'btn tonal', href:'https://www.youtube.com/watch?v=' + encodeURIComponent(id), target:'_blank', rel:'noopener noreferrer' }, icon('open'), t('open_yt'))),
+  h('div', { class:'player' }, h('iframe', { src:embed, title:known ? unesc(known.title) : 'YouTube video player', allow:'accelerometer; encrypted-media; picture-in-picture; fullscreen', allowfullscreen:true, referrerpolicy:'strict-origin-when-cross-origin' })),
+  info));
+ try {
+  const v = await getVideo(id);
+  addHistory(v);
+  document.title = unesc(v.title) + ' – YouTube Gateway';
+  info.append(h('h1', null, unesc(v.title)), h('div', { class:'sub' }, unesc(v.channelTitle) + ' • ' + [fmtViews(v.viewCount), fmtDate(v.publishedAt)].filter(Boolean).join(' • ')),
+   h('div', { class:'desc' }, unesc(v.description)));
+ } catch (e){ if (e.name !== 'AbortError') info.append(stateBox(t('watch_unavailable'), errText(e))); }
+}
+function historyView(){
+ setNav('history');
+ const list = getHistory();
+ const head = h('div', { class:'bar', style:'justify-content:space-between;align-items:center' }, h('h1', { style:'margin:0' }, t('history')),
+  list.length && h('button', { class:'btn tonal', onclick:() => { store.set('ytg.history', []); toast(t('cleared')); historyView(); } }, icon('trash'), t('clear_history')));
+ if (!list.length) return show(head, stateBox(t('history_empty'), t('history_empty_sub')));
+ show(head, h('div', { class:'list' }, list.map(v => h('div', { class:'row' },
+  h('a', { class:'thumb', href:watchHref(v.id), 'aria-label':unesc(v.title) }, h('img', { src:v.thumbnail, alt:'', loading:'lazy' })),
+  h('div', { class:'info' }, h('a', { href:watchHref(v.id), style:'font-weight:600;color:inherit;text-decoration:none' }, unesc(v.title)),
+   h('div', { class:'sub' }, unesc(v.channelTitle)), h('div', { class:'sub' }, new Date(v.ts).toLocaleString(settings.lang))),
+  h('button', { class:'iconbtn', 'aria-label':t('remove'), onclick:() => { store.set('ytg.history', getHistory().filter(x => x.id !== v.id)); historyView(); } }, icon('close'))))));
+}
+function settingsView(){
+ setNav('settings');
+ const seg = h('div', { class:'seg', role:'radiogroup', 'aria-label':t('theme') }, ['system', 'light', 'dark'].map(v =>
+  h('button', { role:'radio', 'aria-checked':String(settings.theme === v), onclick:() => { settings.theme = v; saveSettings(); applyTheme(); settingsView(); } }, t(v))));
+ const sel = (opts, val, on, label) => { const s = h('select', { 'aria-label':label, onchange:e => on(e.target.value) }, opts.map(([v, l]) => h('option', { value:v, selected:String(v) === String(val) }, l))); return s; };
+ show(h('h1', null, t('settings')),
+  h('div', { class:'panel' },
+   h('div', { class:'setting' }, h('span', null, t('theme')), seg),
+   h('div', { class:'setting' }, h('span', null, t('per_page')), sel([6, 12, 18, 24].map(n => [n, n]), settings.perPage, v => { settings.perPage = Number(v); saveSettings(); }, t('per_page'))),
+   h('div', { class:'setting' }, h('span', null, t('language')), sel([['en', 'English'], ['ar', 'العربية']], settings.lang, v => { settings.lang = v; saveSettings(); applyLang(); settingsView(); }, t('language')))),
+  h('div', { class:'panel' },
+   h('div', { class:'setting' }, h('span', null, t('clear_history')), h('button', { class:'btn tonal', onclick:() => { store.set('ytg.history', []); toast(t('cleared')); } }, t('clear_history'))),
+   h('div', { class:'setting' }, h('span', null, t('clear_recent')), h('button', { class:'btn tonal', onclick:() => { store.set('ytg.recent', []); toast(t('cleared')); } }, t('clear_recent')))),
+  h('div', { class:'panel' }, h('div', { class:'setting' }, h('div', null, h('strong', null, t('about')), h('p', { class:'sub', style:'margin:4px 0 0' }, t('about_text')), h('p', { class:'sub', style:'margin:4px 0 0' }, t('future'))))));
+}
+
+/* ---------- router ---------- */
+function syncHeader(){ const hq = $('#hq'); if (document.activeElement !== hq) hq.value = currentQuery; $('#hclear').hidden = !hq.value; }
+function route(){
+ const hash = location.hash || '#/', [, view, arg] = hash.match(/^#\/([^/]*)\/?(.*)$/) || [];
+ document.title = 'YouTube Gateway';
+ let decoded = ''; try { decoded = decodeURIComponent(arg || ''); } catch { /* malformed hash */ }
+ if (view === 'search' && decoded) return runSearch(decoded.slice(0, 100));
+ if (view === 'watch' && /^[A-Za-z0-9_-]{11}$/.test(decoded)) return watchView(decoded);
+ if (view === 'history') return historyView();
+ if (view === 'settings') return settingsView();
+ currentQuery = ''; syncHeader(); homeView();
+}
+
+/* ---------- init ---------- */
+function init(){
+ $('#logo').append(icon('play'));
+ $('#hclear').append(icon('close')); $('#hgo').append(icon('search')); $('#themebtn').append(icon('theme')); $('#setbtn').append(icon('settings'));
+ document.querySelectorAll('[data-ic]').forEach(e => e.append(icon(e.dataset.ic)));
+ applyTheme(); applyLang();
+ $('#hsearch').addEventListener('submit', e => { e.preventDefault(); submitSearch($('#hq').value); });
+ $('#hq').addEventListener('input', () => { $('#hclear').hidden = !$('#hq').value; });
+ $('#hclear').addEventListener('click', () => { $('#hq').value = ''; $('#hclear').hidden = true; $('#hq').focus(); });
+ $('#themebtn').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  settings.theme = dark ? 'light' : 'dark'; saveSettings(); applyTheme();
+  if (location.hash === '#/settings') settingsView();
+ });
+ $('#setbtn').addEventListener('click', () => { location.hash = '#/settings'; });
+ $('#navsearch').addEventListener('click', () => {
+  if (currentQuery) location.hash = '#/search/' + encodeURIComponent(currentQuery); else { location.hash = '#/'; if (!location.hash || location.hash === '#/') homeView(); }
+  $('#hq').focus();
+ });
+ addEventListener('hashchange', route); route();
+}
+init();
+</script>
+</body>
+</html>
